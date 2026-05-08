@@ -45,32 +45,82 @@ Never use absolute paths like `C:\Users\...`.
 - Comment any Phaser-specific API calls so the student understands what it does
 - When suggesting Phaser APIs, prefer Phaser 3 syntax
 
-## Starter Project Structure
+## Current Project State (dev-daniel branch)
 
-The starter project includes a working Tiled map and playable character out of the box:
+### Active Map
 
-- **Map file:** `maps/level1.tmj` — Tiled JSON, 80×25 tiles at 16×16px (1280×400px total)
-- **Tileset:** `assets/2d/Terrain/Terrain (16x16).png` — 22 columns, referenced in the map as `"Terrain"`
-- **Background:** `assets/2d/Background/Grid.png` — 64×64 tiling grid texture (minor lines at 16px, major lines at 32px matching player size)
-- **Player character:** Pink Man (`assets/2d/Main Characters/Pink Man/`) — 32×32px sprites
-  - Idle: 11 frames, Run: 12 frames, Jump: 1 frame, Fall: 1 frame, Crouch: 3-frame sheet (animation plays frames 0–1, holds on frame 1)
-- **Spawn point:** Defined as a Tiled point object named `player` in the `spawnpoints` object layer
-- **Controls:** Arrow keys — left/right to move, up to jump, down to crouch
-- **Physics:** Arcade physics, gravity 600, jump velocity -500, move speed 220, `TILE_BIAS` 32 (prevents corner snagging)
-- **Player hitbox:** 20×28px (standing), 20×16px (crouching) — smaller than the 32×32 sprite frame; tunable via constants at the top of `player.js`
+- **Map file:** `maps/level1.tmj` — original working JSON map, loaded with `this.load.tilemapTiledJSON("level1", ...)`
+- Tileset: `"Terrain"` → `assets/2d/Terrain/Terrain (16x16).png`, layer: `"ground"`
+- Has a `spawnpoints` object layer with a point object named `"player"` — player spawns there
+- Has apple pickups in the `spawnpoints` layer with type `"pickups"`
 
-**File responsibilities:**
+### Active Player Character: Sigma
 
-- `player.js` — all player logic: asset loading, sprite creation, animations, movement, crouch. Tuning values (`PLAYER_SPEED`, `PLAYER_JUMP`, `PLAYER_CHAR`, hitbox constants) are at the top. Students edit this file to change how the player feels or looks.
-- `game.js` — scene scaffold only: config, map loading, background, camera, input, `TILE_BIAS`, and calls to `playerPreload()` / `playerCreate()` / `playerUpdate()`.
+- **Sprite sheet:** `assets/Sigma.png` — 224×32px, **7 frames** in a single row, each frame **32×32px**
+- Loaded with `scene.load.spritesheet("dragon", "assets/Sigma.png", { frameWidth: 32, frameHeight: 32 })`
+- Scaled to `DRAGON_SCALE = 1.33` (~43×43px displayed)
+- **Walk animation:** key `"dragon-walk"`, frames 0–6, frameRate 10, loops forever
+  - Plays when moving left/right; stops and snaps to frame 0 when idle
+- Sprite flips left/right when moving; static `Dragon solo pic.png` is no longer used
+- **Controls:**
+  - Arrow keys: left/right to move, up to jump, down to crouch
+  - **F (hold, while airborne):** glide — caps fall speed to 60 px/s
+  - **G:** toggle revolver drawn/holstered (revolver is a procedurally drawn 20×16 sprite)
+- **No wall jump mechanic**
+- **Physics hitbox:** 24×28px world pixels (independent of scale)
+- Tuning constants at top of `player.js`: `PLAYER_SPEED`, `PLAYER_JUMP`, `DRAGON_SCALE`, `PLAYER_HITBOX_WIDTH/HEIGHT`, `GLIDE_FALL_SPEED`
 
-When helping students modify the game, assume this foundation is already in place. Do not rewrite the map loading or player setup unless the student explicitly asks to replace it.
+### Dragon Assets (in `assets/`) — not currently active
+
+- `Dragon solo pic.png` (32×32) — old static single-image character, no longer used
+- `Dragon movement 1.png` (1407×768) — 4 dragons stacked vertically, not used
+- `Dragon movement 2.png` (1407×768) — not used
+- `Dragon movement 3.png` (1697×927) — not used
+
+### Files Added from design-jeff Branch
+
+- `assets/2d/Items/Fruits/items01.tsx` — empty tileset definition
+- `maps/posttutorial.tmx` — Jeff's map (currently active, but empty)
+- `maps/smeegle.tsx` — background tileset with 9 background tiles
+
+### Original Starter Files (still present, not active)
+
+- `maps/level1.tmj` — original working JSON map (80×25 tiles, has spawn point and pickups)
+- `assets/2d/Main Characters/Pink Man/` — original Pink Man sprites (not in use)
+- To revert to the original map/character, change `tilemapXML` → `tilemapTiledJSON`, key back to `"level1"`, tileset to `"Terrain"`, layer to `"ground"`, restore spawnpoints lookup, and restore Pink Man in `player.js`
 
 ## Branches
 
 - `main` — clean student-facing base
 - `dev` — teacher working branch; source of truth for the current feature set
 - `MatterTest` — experimental Matter.js physics port; kept as a reference/advanced challenge, not for student distribution
+
+### Student Branches (on remote `dmartin29-code/NinjaPlatformer`)
+
+- `dev-daniel` — current working branch for this student (Daniel)
+- `origin/design-jeff` — student branch for Jeff's design work (changes already applied to dev-daniel)
+- `dev-sfletcher29-tech` — student branch (not yet pushed to remote as of last check)
+
+### Git Config for this repo
+
+- `user.email = dmartin29@dtechhs.org`
+- `user.name = Git Commits`
+
+## Original Starter Reference
+
+The original starter project had:
+
+- **Map file:** `maps/level1.tmj` — Tiled JSON, 80×25 tiles at 16×16px (1280×400px total)
+- **Tileset:** `assets/2d/Terrain/Terrain (16x16).png` — 22 columns, referenced in the map as `"Terrain"`
+- **Background:** `assets/2d/Background/Grid.png` — 64×64 tiling grid texture
+- **Player character:** Pink Man (`assets/2d/Main Characters/Pink Man/`) — 32×32px sprites
+  - Idle: 11 frames, Run: 12 frames, Jump: 1 frame, Fall: 1 frame, Crouch: 3-frame sheet
+- **Spawn point:** Defined as a Tiled point object named `player` in the `spawnpoints` object layer
+- **Controls:** Arrow keys — left/right to move, up to jump, down to crouch
+- **Physics:** Arcade physics, gravity 600, jump velocity -500, move speed 220, `TILE_BIAS` 32
+- **Player hitbox:** 20×28px (standing), 20×16px (crouching)
+
+**Note:** When a student asks to pull changes from another branch, first run `git fetch --all` and `git branch -a` to confirm the branch exists on the remote. If it doesn't appear, the student needs to ask the branch owner to run `git push origin <branch-name>`. To apply changes without merging, use `git diff` + `git apply` or cherry-pick specific commits.
 
 ## How to Help Students
 

@@ -1,116 +1,117 @@
 // ─────────────────────────────────────────────
-//  player.js — Pink Man player character
+//  player.js — Dragon Cowboy character
 //  Edit this file to change how the player looks and feels.
 // ─────────────────────────────────────────────
 
 // ── Tuning values ──────────────────────────────
 var PLAYER_SPEED = 220; // horizontal move speed (pixels/sec)
 var PLAYER_JUMP = -500; // jump velocity — more negative = higher jump
-var PLAYER_CHAR = "Pink Man"; // folder name inside assets/2d/Main Characters/
+var PLAYER_CHAR = "Sigma";
 
-// Hitbox size — smaller than the 32x32 sprite frame to avoid snagging on tile corners
-// and to give the player a "generous" feel (hazards must clearly overlap to register).
-// Turn on debug: true in game.js to see the green hitbox while tuning these.
-var PLAYER_HITBOX_WIDTH = 20; // pixels wide  (sprite frame is 32px)
-var PLAYER_HITBOX_HEIGHT = 28; // pixels tall  (sprite frame is 32px)
-var PLAYER_HITBOX_OFFSET_X = 6; // shift right to center the hitbox in the frame
-var PLAYER_HITBOX_OFFSET_Y = 4; // shift down  to align feet with the bottom of the frame
+// The character sprite sheet is loaded from assets/Sigma.png (8 frames, single row).
+// Adjust DRAGON_SCALE to make it bigger or smaller on screen.
+var DRAGON_SCALE = 1.33; // ~1/3 larger than the base 28x32 size
 
-// Crouched hitbox — shorter than standing; offsetY keeps feet planted on the ground.
-// Rule: CROUCH_OFFSET_Y = HITBOX_OFFSET_Y + (HITBOX_HEIGHT - CROUCH_HEIGHT)
-var PLAYER_CROUCH_HEIGHT = 16; // pixels tall while crouching
-var PLAYER_CROUCH_OFFSET_Y = 16; // = 4 + (28 - 16)
+// Physics hitbox — set in world pixels (independent of sprite scale).
+// Enable debug: true in game.js to see the green box while tuning.
+var PLAYER_HITBOX_WIDTH = 24; // world pixels wide
+var PLAYER_HITBOX_HEIGHT = 28; // world pixels tall
+
+// Glide — hold F in the air to slow the dragon's fall
+var GLIDE_FALL_SPEED = 60; // max downward velocity while gliding (px/s)
 
 // ── Asset loading ──────────────────────────────
 // Called from preload() in game.js
 function playerPreload(scene) {
-  var base = "assets/2d/Main Characters/" + PLAYER_CHAR + "/";
-  scene.load.spritesheet("player-idle", base + "Idle (32x32).png", {
-    frameWidth: 32,
+  // Load the character sprite sheet — 7 frames in a single row, each frame 32x32 px
+  scene.load.spritesheet("dragon", "assets/Sigma.png", {
+    frameWidth: 32, // 224px total / 7 frames
     frameHeight: 32,
   });
-  scene.load.spritesheet("player-run", base + "Run (32x32).png", {
-    frameWidth: 32,
-    frameHeight: 32,
-  });
-  scene.load.spritesheet("player-jump", base + "Jump (32x32).png", {
-    frameWidth: 32,
-    frameHeight: 32,
-  });
-  scene.load.spritesheet("player-fall", base + "Fall (32x32).png", {
-    frameWidth: 32,
-    frameHeight: 32,
-  });
-  scene.load.spritesheet("player-crouch", base + "Crouch (32x32).png", {
-    frameWidth: 32,
-    frameHeight: 32,
-  });
+
   scene.load.audio(
     "jump-sfx",
     "assets/audio/GameSFX/Bounce Jump/Retro Jump Simple C2 02.wav",
   ); // jump sound effect
 }
 
+// ── Revolver sprite drawing ──────────────────────────────────────
+// Creates a 20×16 pixel-art revolver sprite (cowboy style).
+function generateRevolverTexture(scene) {
+  var g = scene.add.graphics();
+
+  // Barrel
+  g.fillStyle(0x666666, 1);
+  g.fillRect(8, 5, 10, 3);
+  g.fillStyle(0x888888, 1);
+  g.fillRect(17, 5, 2, 3);
+
+  // Cylinder
+  g.fillStyle(0x555555, 1);
+  g.fillRect(7, 4, 4, 5);
+  g.fillStyle(0x444444, 1);
+  g.fillCircle(9, 7, 1);
+
+  // Frame
+  g.fillStyle(0x666666, 1);
+  g.fillRect(6, 6, 5, 2);
+
+  // Handle (wood)
+  g.fillStyle(0xb8860b, 1); // golden brown
+  g.fillRect(5, 7, 4, 6);
+  g.fillStyle(0x8b6914, 1); // darker shading
+  g.fillRect(6, 8, 2, 4);
+
+  // Trigger
+  g.fillStyle(0x555555, 1);
+  g.fillRect(7, 8, 1, 2);
+
+  g.generateTexture("revolver", 20, 16);
+  g.destroy();
+}
+
 // ── Create player sprite + animations ──────────
 // Called from create() in game.js. Returns the player sprite.
 function playerCreate(scene, x, y, groundLayer) {
-  var player = scene.physics.add.sprite(x, y, "player-idle");
+  // Generate revolver texture if needed
+  if (!scene.textures.exists("revolver")) {
+    generateRevolverTexture(scene);
+  }
+
+  var player = scene.physics.add.sprite(x, y, "dragon");
+
+  // Scale the character sprite to fit the game world
+  player.setScale(DRAGON_SCALE);
   player.setCollideWorldBounds(true); // can't walk off the edge of the map
 
-  // Shrink the physics hitbox so it matches the visible character, not the full frame.
-  // Reduces edge-lock on tile corners and makes hazard hits feel fair.
+  // Fix the physics hitbox to a consistent world-pixel size.
   player.body.setSize(PLAYER_HITBOX_WIDTH, PLAYER_HITBOX_HEIGHT);
-  player.body.setOffset(PLAYER_HITBOX_OFFSET_X, PLAYER_HITBOX_OFFSET_Y);
+
+  // Walk animation — cycles through all 7 frames while the player is moving
+  scene.anims.create({
+    key: "dragon-walk",
+    frames: scene.anims.generateFrameNumbers("dragon", { start: 0, end: 6 }),
+    frameRate: 10, // frames per second — raise to speed up, lower to slow down
+    repeat: -1, // loop forever
+  });
 
   // Collide with ground tiles
   scene.physics.add.collider(player, groundLayer);
 
-  // Animations — edit frameRate to speed up or slow down
-  scene.anims.create({
-    key: "idle",
-    frames: scene.anims.generateFrameNumbers("player-idle", {
-      start: 0,
-      end: 10,
-    }),
-    frameRate: 11,
-    repeat: -1, // loop forever
-  });
-  scene.anims.create({
-    key: "run",
-    frames: scene.anims.generateFrameNumbers("player-run", {
-      start: 0,
-      end: 11,
-    }),
-    frameRate: 12,
-    repeat: -1,
-  });
-  scene.anims.create({
-    key: "jump",
-    frames: scene.anims.generateFrameNumbers("player-jump", {
-      start: 0,
-      end: 0,
-    }),
-    frameRate: 1,
-    repeat: 0,
-  });
-  scene.anims.create({
-    key: "fall",
-    frames: scene.anims.generateFrameNumbers("player-fall", {
-      start: 0,
-      end: 0,
-    }),
-    frameRate: 1,
-    repeat: 0,
-  });
-  scene.anims.create({
-    key: "crouch",
-    frames: scene.anims.generateFrameNumbers("player-crouch", {
-      start: 0,
-      end: 1,
-    }),
-    frameRate: 10, // plays the drop in ~0.2 seconds, then holds on the crouched pose
-    repeat: 0,
-  });
+  // F key for gliding — stored on the player so playerUpdate can read it
+  player.glideKey = scene.input.keyboard.addKey(
+    Phaser.Input.Keyboard.KeyCodes.F,
+  );
+
+  // G key to draw / holster the revolver
+  player.gunKey = scene.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.G);
+
+  // Revolver companion sprite — follows player, shown when gun is drawn
+  var gunSprite = scene.add.image(x, y, "revolver");
+  gunSprite.setScale(DRAGON_SCALE);
+  gunSprite.setVisible(false); // starts holstered
+  player.gunSprite = gunSprite;
+  player.gunDrawn = false;
 
   return player;
 }
@@ -120,26 +121,21 @@ function playerCreate(scene, x, y, groundLayer) {
 function playerUpdate(player, cursors) {
   var onGround = player.body.blocked.down; // true when standing on a tile
   var crouching = cursors.down.isDown && onGround; // crouch only while on ground
-
-  // Resize hitbox based on crouch state.
-  // offsetY must increase when height shrinks to keep feet planted.
-  if (crouching) {
-    player.body.setSize(PLAYER_HITBOX_WIDTH, PLAYER_CROUCH_HEIGHT);
-    player.body.setOffset(PLAYER_HITBOX_OFFSET_X, PLAYER_CROUCH_OFFSET_Y);
-  } else {
-    player.body.setSize(PLAYER_HITBOX_WIDTH, PLAYER_HITBOX_HEIGHT);
-    player.body.setOffset(PLAYER_HITBOX_OFFSET_X, PLAYER_HITBOX_OFFSET_Y);
-  }
+  var gliding = !onGround && player.glideKey.isDown; // glide only while airborne
 
   // Left / right movement — blocked while crouching
   if (!crouching && cursors.left.isDown) {
     player.setVelocityX(-PLAYER_SPEED);
     player.setFlipX(true); // face left
+    player.play("dragon-walk", true); // play walk animation (true = don't restart if already playing)
   } else if (!crouching && cursors.right.isDown) {
     player.setVelocityX(PLAYER_SPEED);
     player.setFlipX(false); // face right
+    player.play("dragon-walk", true); // play walk animation
   } else {
     player.setVelocityX(0);
+    player.anims.stop(); // stop animating — hold on current frame
+    player.setFrame(0); // snap back to the first frame as the idle pose
   }
 
   // Jump — allowed from both standing and crouching
@@ -147,30 +143,28 @@ function playerUpdate(player, cursors) {
     player.setVelocityY(PLAYER_JUMP);
   }
 
+  // Glide — hold F to slow the dragon's fall (cap downward velocity)
+  if (gliding && player.body.velocity.y > GLIDE_FALL_SPEED) {
+    player.setVelocityY(GLIDE_FALL_SPEED);
+  }
+
   // Play jump sound once per keypress (JustDown prevents repeating every frame)
   if (Phaser.Input.Keyboard.JustDown(cursors.up) && onGround) {
     player.scene.sound.play("jump-sfx");
   }
 
-  // Play the right animation based on what the player is doing
-  if (!onGround) {
-    if (player.body.velocity.y < 0) {
-      player.anims.play("jump", true);
-    } else {
-      player.anims.play("fall", true);
-    }
-  } else if (crouching) {
-    // Only call play() when first entering crouch — once the 3 frames finish,
-    // Phaser holds on the last frame. Re-calling play() would restart the drop.
-    if (
-      !player.anims.currentAnim ||
-      player.anims.currentAnim.key !== "crouch"
-    ) {
-      player.anims.play("crouch");
-    }
-  } else if (cursors.left.isDown || cursors.right.isDown) {
-    player.anims.play("run", true);
-  } else {
-    player.anims.play("idle", true);
+  // G key toggles the revolver drawn/holstered
+  if (Phaser.Input.Keyboard.JustDown(player.gunKey)) {
+    player.gunDrawn = !player.gunDrawn;
+    player.gunSprite.setVisible(player.gunDrawn);
+  }
+
+  // Update revolver sprite to follow the player
+  if (player.gunDrawn) {
+    var facing = player.flipX ? -1 : 1; // -1 = left, 1 = right
+    // Position the gun at the dragon's hand level, extended forward
+    player.gunSprite.x = player.x + facing * 28;
+    player.gunSprite.y = player.y + 6;
+    player.gunSprite.setFlipX(player.flipX); // mirror gun to match direction
   }
 }
